@@ -34,7 +34,7 @@ def select(_title="请选择文件", select_type="file", _multiple=False):
         # 设置文件对话框参数
         paths = filedialog.askopenfilenames(
             title=_title,
-            filetypes=[ ("cs2比赛记录", "*.html"), ("所有文件", "*.*")],  # 支持自定义过滤器
+            filetypes=[ ("CS2比赛记录", "*.html"), ("所有文件", "*.*")],  # 支持自定义过滤器
             multiple=_multiple
         )
     elif select_type == "folder":
@@ -333,12 +333,14 @@ class AsyncBZ2Decompressor:
         
         return all(results)
 
-
-if __name__ == "__main__":
-    #解析链接
-    print("请选择 cs2 比赛记录文件")
-    selected_files = select("请选择 cs2 比赛记录文件", "file", True)
-    print(f"已选则 {len(selected_files)} 个 cs2 比赛记录文件：")
+def main():
+   #解析链接
+    print("请选择 CS2 比赛记录文件")
+    selected_files = select("请选择 CS2 比赛记录文件", "file", True)
+    if not selected_files:
+        print("未选择CS2 比赛记录文件，程序退出。")
+        
+    print(f"已选则 {len(selected_files)} 个 CS2 比赛记录文件：")
     for file in selected_files:
         print("- ", file)
     
@@ -386,6 +388,17 @@ if __name__ == "__main__":
     for file in decompressor.files_name():
         print("- ", file)
         
-    
     os.remove(tmp_folder)  # 删除临时文件夹
-    print("已删除缓存")
+    print(f"已删除 .bz2 缓存文件 {downloader.files_num()} 个")
+
+if __name__ == "__main__":
+    print("欢迎使用 CS2 Demo 下载器")
+    print("作者：@小白")
+    print("版本：1.0")
+    print("更新日期：2023-10-01")
+    print("请确保已安装必要的库：aiohttp, tqdm, aiofiles, aioconsole, bs4")
+    main()
+
+    
+    
+    
