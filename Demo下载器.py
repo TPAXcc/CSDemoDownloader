@@ -393,9 +393,9 @@ def main():
 
 if __name__ == "__main__":
     print("欢迎使用 CS2 Demo 下载器")
-    print("作者：@小白")
-    print("版本：1.0")
-    print("更新日期：2023-10-01")
+    print("作者：TPAX_")
+    print("版本：1.0.0")
+    print("更新日期：2025-05-13")
     print("请确保已安装必要的库：aiohttp, tqdm, aiofiles, aioconsole, bs4")
     main()
 
