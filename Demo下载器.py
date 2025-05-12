@@ -310,7 +310,7 @@ class AsyncDownloader:
         except (IOError, bz2.BZ2Error) as e:
             raise RuntimeError(f"解压缩失败: {str(e)}")
 
-# 使用示例
+
 if __name__ == "__main__":
     print("请选择 cs2 比赛记录文件")
     selected_files = select("请选择 cs2 比赛记录文件", "file", True)
