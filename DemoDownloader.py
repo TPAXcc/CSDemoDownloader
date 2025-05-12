@@ -16,6 +16,10 @@ import aiofiles
 import aioconsole
 import bz2
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+
+
 
 def select(_title="请选择文件", select_type="file", _multiple=False):
     """打开文件选择窗口，允许用户多选文件并返回列表"""
@@ -27,7 +31,7 @@ def select(_title="请选择文件", select_type="file", _multiple=False):
     #     ico.export_icon('explorer_icon.ico')
         
     root = tk.Tk()
-    # root.iconbitmap('explorer_icon.ico')
+    # root.iconbitmap(os.path.join(script_dir, 'assets', 'explorer_icon.ico'))
     root.withdraw()  # 隐藏主窗口
     
     if select_type == "file":
@@ -392,13 +396,57 @@ def main():
     print(f"已删除 .bz2 缓存文件 {downloader.files_num()} 个")
 
 if __name__ == "__main__":
-    print("欢迎使用 CS2 Demo 下载器")
-    print("作者：TPAX_")
-    print("版本：1.0.0")
-    print("更新日期：2025-05-13")
-    print("请确保已安装必要的库：aiohttp, tqdm, aiofiles, aioconsole, bs4")
-    main()
+    print("""欢迎使用 CS2 Demo 下载器
+作者：TPAX_
+版本：1.0.0
+更新日期：2025-05-13
+如有问题请联系作者：TPAX_
+""")
 
+    print("""请选择需要下载的比赛类型：
+a. 官匹优先
+b. 官匹竞技
+c. 官匹其它类型
+输入 a/b/c/ab/ac/bc/abc 选择需要下载的比赛类型""")
+    match_group_select = input().strip().lower()
+    
+    dict_match_group = {
+        "a": ["官匹优先"],
+        "b": ["官匹竞技"],
+        "c": ["官匹其它类型"],
+        "ab": ["官匹优先", "官匹竞技"],
+        "ac": ["官匹优先", "官匹其它类型"],
+        "bc": ["官匹竞技", "官匹其它类型"],
+        "abc": ["官匹优先", "官匹竞技", "官匹其它类型"]
+    }
+    print("已选择 "+"".join(dict_match_group.get(match_group_select, [])))
+    dict_match_group_grade = {
+        "a": "-官匹优先下载教程\n 3a.点击浏览器URL框，在后面添加 gcpd/730/?tab=matchhistorypremier\n 4a.右键页面，选择保存/另存为",
+        "b": "-官匹竞技下载教程\n 3b.点击浏览器URL框，在后面添加 gcpd/730/?tab=matchhistorycompetitivepermap\n 4a.右键页面，选择保存/另存为",
+        "c": "-官匹其它类型下载教程\n 3c.点击浏览器URL框，在后面添加 gcpd/730/\n 4a.打开你要下载的比赛类型（确保你能看到“下载回放”按钮），右键页面,目标保存/另存为",
+    }
+    
+    print("1.使用浏览器（推荐 Edge）打开 Steam 官网 https://store.steampowered.com/login/ 并登录需要下载 Demo 的 Steam 账号") 
+    print("2.点击上方的个人资料")
+    def option_a():
+        print(dict_match_group_grade.get("a"))
+
+    def option_b():
+        print(dict_match_group_grade.get("b"))
+
+    def option_c():
+        print(dict_match_group_grade.get("c"))
+    actions = {
+        'a': option_a,
+        'b': option_b,
+        'c': option_c
+    }
+    for choice in match_group_select:
+        actions[choice]()
+    print("5.选择所有保存的 CS2 比赛记录 (html 文件)")
+    input("按回车键继续...")
+    main()
+    exit(1)
     
     
     
