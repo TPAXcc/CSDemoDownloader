@@ -12,7 +12,6 @@ from tqdm.asyncio import tqdm_asyncio
 import math
 from pathlib import Path
 from typing import List, Tuple
-from tqdm.asyncio import tqdm_asyncio
 import aiofiles
 import aioconsole
 
