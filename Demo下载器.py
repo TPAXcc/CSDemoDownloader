@@ -21,13 +21,13 @@ def select(_title="请选择文件", select_type="file", _multiple=False):
     """打开文件选择窗口，允许用户多选文件并返回列表"""
     ctypes.windll.shcore.SetProcessDpiAwareness(1)
     # 提取 explorer.exe 的图标并保存
-    if not os.path.exists('explorer_icon.ico'):
-        explorer_path = r'C:\Windows\explorer.exe'
-        ico = icoextract.IconExtractor(explorer_path)
-        ico.export_icon('explorer_icon.ico')
+    # if not os.path.exists('explorer_icon.ico'):
+    #     explorer_path = r'C:\Windows\explorer.exe'
+    #     ico = icoextract.IconExtractor(explorer_path)
+    #     ico.export_icon('explorer_icon.ico')
         
     root = tk.Tk()
-    root.iconbitmap('explorer_icon.ico')
+    # root.iconbitmap('explorer_icon.ico')
     root.withdraw()  # 隐藏主窗口
     
     if select_type == "file":
@@ -46,7 +46,7 @@ def select(_title="请选择文件", select_type="file", _multiple=False):
         raise ValueError("无效的select_type参数，仅支持'file'或'directory'")
     
     root.destroy()  # 销毁窗口
-    os.remove('explorer_icon.ico')  # 删除临时图标文件
+    # os.remove('explorer_icon.ico')  # 删除临时图标文件
     
     if _multiple == False:
         return paths  # 返回单个路径
@@ -256,63 +256,86 @@ class AsyncDownloader:
             
             await tqdm_asyncio.gather(*tasks, desc=f"总进度",)
 
-    """BZ2文件异步解压器"""
+class AsyncBZ2Decompressor:
+    def __init__(
+        self,
+        bz2_files_list: List[str],
+        extract_dir: str,
+        max_workers: int = 4,
+        chunk_size: int = 1024*1024  # 1MB
+    ):
+        self.bz2_files_list = bz2_files_list
+        self.extract_dir = Path(extract_dir)
+        self.max_workers = max_workers
+        self.chunk_size = chunk_size
+        self._extracted_files = []
+        self._lock = None
+        self.extract_dir.mkdir(parents=True, exist_ok=True)
 
-    async def decompress_files(self, file_list, output_dir):
-        """
-        异步解压BZ2文件列表到指定目录
+    async def _stream_extract(self, src_path: Path):
+        """流式解压单个BZ2文件"""
+        if self._lock is None:
+            self._lock = asyncio.Lock()
         
-        :param file_list: 要解压的.bz2文件路径列表
-        :param output_dir: 解压文件输出目录
-        """
-        # 创建输出目录（异步执行）
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, os.makedirs, output_dir, exist_ok=True)
+        dest_path = self.extract_dir / src_path.stem
+        total_size = src_path.stat().st_size
         
-        # 创建并执行解压任务
-        tasks = []
-        for input_path in file_list:
-            # 构造输出文件名
-            input_path = Path(input_path)
-            output_filename = input_path.name
-            if output_filename.endswith('.bz2'):
-                output_filename = output_filename[:-4]  # 去除.bz2后缀
-            output_path = Path(output_dir) / output_filename
-            
-            tasks.append(
-                self._decompress_with_error_handling(input_path, output_path)
-            )
-        
-        # 等待所有任务完成（遇到异常继续执行）
-        await asyncio.gather(*tasks, return_exceptions=True)
-
-    async def _decompress_with_error_handling(self, input_path, output_path):
-        """带错误处理的解压包装方法"""
         try:
-            await self.decompress_single_file(input_path, output_path)
+            with (
+                bz2.BZ2File(src_path, 'rb') as f_in,
+                open(dest_path, 'wb') as f_out,
+                tqdm_asyncio(
+                    total=total_size,
+                    desc=f"解压 {src_path.name}",
+                    unit='B',
+                    unit_scale=True,
+                    unit_divisor=1024,
+                    ascii=True,
+                    dynamic_ncols=True
+                ) as pbar
+            ):
+                while chunk := f_in.read(self.chunk_size):
+                    f_out.write(chunk)
+                    pbar.update(len(chunk))
+                    await asyncio.sleep(0)  # 让出事件循环控制权
+
+            async with self._lock:
+                self._extracted_files.append(str(dest_path))
+                
+            return True
         except Exception as e:
-            print(f"解压失败 {input_path}: {str(e)}")
+            print(f"解压失败 {src_path.name}: {str(e)}")
+            return False
 
-    async def decompress_single_file(self, input_path, output_path):
-        """单个文件解压任务"""
-        await asyncio.to_thread(self._sync_decompress, input_path, output_path)
+    def files_num(self) -> int:
+        """已解压文件数量"""
+        return len(self._extracted_files)
 
-    @staticmethod
-    def _sync_decompress(input_path, output_path):
-        """同步解压实现（使用流式处理）"""
-        try:
-            with bz2.open(input_path, 'rb') as f_in:
-                with open(output_path, 'wb') as f_out:
-                    while True:
-                        chunk = f_in.read(8192)  # 8KB分块读取
-                        if not chunk:
-                            break
-                        f_out.write(chunk)
-        except (IOError, bz2.BZ2Error) as e:
-            raise RuntimeError(f"解压缩失败: {str(e)}")
+    def files_name(self) -> List[str]:
+        """已解压文件路径列表"""
+        return self._extracted_files
+    
+    async def run(self):
+        """异步入口函数"""
+        sem = asyncio.Semaphore(self.max_workers)
+        
+        async def worker(src_path):
+            async with sem:
+                return await self._stream_extract(src_path)
+
+        tasks = [worker(Path(f)) for f in self.bz2_files_list]
+        results = await tqdm_asyncio.gather(
+            *tasks,
+            desc="总进度",
+            unit="文件",
+            position=0
+        )
+        
+        return all(results)
 
 
 if __name__ == "__main__":
+    #解析链接
     print("请选择 cs2 比赛记录文件")
     selected_files = select("请选择 cs2 比赛记录文件", "file", True)
     print(f"已选则 {len(selected_files)} 个 cs2 比赛记录文件：")
@@ -334,6 +357,7 @@ if __name__ == "__main__":
     
     
     
+    # 处理demo链接
     print("请选择 Demo 下载文件夹") 
     traget_folder = select("请选择 Demo 下载文件夹", "folder")     
     print(f"已选择的 Demo 文件夹 {traget_folder} ")
@@ -352,3 +376,16 @@ if __name__ == "__main__":
         print("- ", file)
 
     print("开始解压 Demo 文件至目标文件夹...")
+    decompress_files = [os.path.join(tmp_folder, name) for name in downloader.files_name()]
+    decompressor = AsyncBZ2Decompressor(
+        bz2_files_list=decompress_files,  # 下载的文件列表
+        extract_dir=traget_folder  # 解压目录
+    )
+    asyncio.run(decompressor.run())
+    print(f"已解压 {len(decompressor.files_name())} 个 Demo 文件至 {traget_folder} 文件夹：")
+    for file in decompressor.files_name():
+        print("- ", file)
+        
+    
+    os.remove(tmp_folder)  # 删除临时文件夹
+    print("已删除缓存")
