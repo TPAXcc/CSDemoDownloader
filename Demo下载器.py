@@ -14,17 +14,18 @@ from pathlib import Path
 from typing import List, Tuple
 import aiofiles
 import aioconsole
-
+import bz2
 
 
 def select(_title="请选择文件", select_type="file", _multiple=False):
     """打开文件选择窗口，允许用户多选文件并返回列表"""
     ctypes.windll.shcore.SetProcessDpiAwareness(1)
     # 提取 explorer.exe 的图标并保存
-    explorer_path = r'C:\Windows\explorer.exe'
-    ico = icoextract.IconExtractor(explorer_path)
-    ico.export_icon('explorer_icon.ico')
-    
+    if not os.path.exists('explorer_icon.ico'):
+        explorer_path = r'C:\Windows\explorer.exe'
+        ico = icoextract.IconExtractor(explorer_path)
+        ico.export_icon('explorer_icon.ico')
+        
     root = tk.Tk()
     root.iconbitmap('explorer_icon.ico')
     root.withdraw()  # 隐藏主窗口
@@ -45,7 +46,7 @@ def select(_title="请选择文件", select_type="file", _multiple=False):
         raise ValueError("无效的select_type参数，仅支持'file'或'directory'")
     
     root.destroy()  # 销毁窗口
-    os.remove('explorer_icon.ico')
+    os.remove('explorer_icon.ico')  # 删除临时图标文件
     
     if _multiple == False:
         return paths  # 返回单个路径
@@ -331,15 +332,17 @@ if __name__ == "__main__":
     for link in demo_links:
         print("- ", link)
     
+    
+    
     print("请选择 Demo 下载文件夹") 
-    selected_folder = select("请选择 Demo 下载文件夹", "folder")     
-    print(f"已选择的 Demo 文件夹 {selected_folder} ")
+    traget_folder = select("请选择 Demo 下载文件夹", "folder")     
+    print(f"已选择的 Demo 文件夹 {traget_folder} ")
     
     print("开始下载 Demo 文件...")
-    tmp_folder = selected_folder + "/tmp"
+    tmp_folder = traget_folder + "/tmp"
     downloader = AsyncDownloader(
-        urls=demo_links,
-        download_dir=tmp_folder,
+        urls=demo_links,  # 下载链接列表
+        download_dir=tmp_folder,  # 下载目录
         max_workers=4,  # 最大并发下载任务数
         max_chunks_per_task=4  # 单任务最大分片数
     )
