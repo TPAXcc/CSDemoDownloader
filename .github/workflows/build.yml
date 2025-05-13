@@ -5,6 +5,7 @@ jobs:
   build_exe:
     runs-on: windows-2025
     steps:
+    - uses: actions/checkout@v4 
     - name: Setup Python
       uses: actions/setup-python@v5.6.0
       with:
@@ -29,8 +30,8 @@ jobs:
         # When 'true', use the freethreaded version of Python.
         #freethreaded: # optional
 
-    # - name: Install dependencies
-    #   run: pip install -r requirements.txt
+    - name: Install dependencies
+      run: pip install -r requirements.txt
     
     - name: build exe with nuitka
       run: |
