@@ -5,14 +5,13 @@ from bs4 import BeautifulSoup
 import os
 from urllib.parse import urlparse
 import asyncio
-import os
 import aiohttp
 from tqdm.asyncio import tqdm_asyncio
 import math
 from pathlib import Path
 from typing import List, Tuple
 import aiofiles
-import aioconsole
+import aiofiles
 import bz2
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
