@@ -1,0 +1,11 @@
+ctypes
+BeautifulSoup
+urllib
+aiohttp
+asyncio
+aiofiles
+tqdm
+math
+pathlib
+typing
+bz2
