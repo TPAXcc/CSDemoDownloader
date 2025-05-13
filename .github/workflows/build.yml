@@ -3,7 +3,7 @@ on: [push, pull_request]
 
 jobs:
   build_exe:
-    runs-on: windows
+    runs-on: windows-2025
     steps:
     - name: Setup Python
       uses: actions/setup-python@v5.6.0
