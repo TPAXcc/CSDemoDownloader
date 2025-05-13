@@ -30,10 +30,10 @@ jobs:
         # When 'true', use the freethreaded version of Python.
         #freethreaded: # optional
 
-    - name: Install dependencies
+    - name: Install Dependencies
       run: pip install -r requirements.txt
     
-    - name: build exe with nuitka
+    - name: Build exe with Nuitka
       run: |
         pip install -U nuitka
         nuitka CSDemoDownloader.py
