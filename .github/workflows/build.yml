@@ -29,12 +29,10 @@ jobs:
         # When 'true', use the freethreaded version of Python.
         #freethreaded: # optional
 
-    - name: 更新依赖
-      run: |
-        pip install -r requirements.txt
-      working-directory: assests
+    - name: Install dependencies
+      run: pip install -r requirements.txt
     
-    - name: 调用 nuitka 构建 exe 文件
+    - name: build exe with nuitka
       run: |
         pip install -U nuitka
         nuitka CSDemoDownloader.py
