@@ -3,17 +3,15 @@ from tkinter import filedialog
 import ctypes
 from bs4 import BeautifulSoup
 import os
-import icoextract
 from urllib.parse import urlparse
 import asyncio
-import os
 import aiohttp
 from tqdm.asyncio import tqdm_asyncio
 import math
 from pathlib import Path
 from typing import List, Tuple
 import aiofiles
-import aioconsole
+import aiofiles
 import bz2
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -24,12 +22,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 def select(_title="请选择文件", select_type="file", _multiple=False):
     """打开文件选择窗口，允许用户多选文件并返回列表"""
     ctypes.windll.shcore.SetProcessDpiAwareness(1)
-    # 提取 explorer.exe 的图标并保存
-    # if not os.path.exists('explorer_icon.ico'):
-    #     explorer_path = r'C:\Windows\explorer.exe'
-    #     ico = icoextract.IconExtractor(explorer_path)
-    #     ico.export_icon('explorer_icon.ico')
-        
+
     root = tk.Tk()
     # root.iconbitmap(os.path.join(script_dir, 'assets', 'explorer_icon.ico'))
     root.withdraw()  # 隐藏主窗口
@@ -50,7 +43,6 @@ def select(_title="请选择文件", select_type="file", _multiple=False):
         raise ValueError("无效的select_type参数，仅支持'file'或'directory'")
     
     root.destroy()  # 销毁窗口
-    # os.remove('explorer_icon.ico')  # 删除临时图标文件
     
     if _multiple == False:
         return paths  # 返回单个路径
