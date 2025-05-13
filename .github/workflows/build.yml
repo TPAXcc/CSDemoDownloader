@@ -68,7 +68,7 @@ jobs:
     - name: Extract Short SHA
       run: |
         echo "SHORT_SHA=${GITHUB_SHA:0:7}" >> $GITHUB_ENV
-        echo ${{ env.SHORT_SHA }}
+        echo "${{ env.SHORT_SHA }}"
 
     # 使用环境变量
     - name: Create Source Archive
