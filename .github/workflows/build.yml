@@ -84,4 +84,4 @@ jobs:
           build/*.exe
           source-${{ env.SHORT_SHA }}.zip
         draft: false
-        prerelease: yes
+        prerelease: true
