@@ -29,8 +29,8 @@ jobs:
         # When 'true', use the freethreaded version of Python.
         #freethreaded: # optional
 
-    - name: Install dependencies
-      run: pip install -r requirements.txt
+    # - name: Install dependencies
+    #   run: pip install -r requirements.txt
     
     - name: build exe with nuitka
       run: |
