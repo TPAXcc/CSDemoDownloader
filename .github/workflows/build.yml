@@ -31,8 +31,8 @@ jobs:
 
     - name: 更新依赖
       run: |
-        ls  
         pip install -r requirements.txt
+      working-directory: /
     
     - name: 调用 nuitka 构建 exe 文件
       run: |
