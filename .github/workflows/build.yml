@@ -75,7 +75,7 @@ jobs:
         body: |
           ${{ github.event.head_commit.message }}
           Commit: ${{ env.SHORT_SHA }}
-          由 GitHub Actions 自动生成
+          ##### 由 GitHub Actions 自动生成
         files: |
           build/*.exe
         draft: false
