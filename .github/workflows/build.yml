@@ -30,7 +30,9 @@ jobs:
         #freethreaded: # optional
 
     - name: 更新依赖
-      run: pip install -r requirements.txt
+      run: |
+        ls  
+        pip install -r requirements.txt
     
     - name: 调用 nuitka 构建 exe 文件
       run: |
