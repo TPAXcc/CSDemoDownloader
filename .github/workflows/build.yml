@@ -49,12 +49,10 @@ jobs:
   
   publish_release:
     needs: [build_exe]  # 依赖构建任务
-    runs-on: windows-2025
+    runs-on: ubuntu-latest
     if: github.event_name == 'push'  # 仅在push事件触发
     permissions:
       contents: write  # 需要写入权限发布Release
-    env: 
-      SHORT_SHA: ${GITHUB_SHA:0:7}     # 获取短SHA
     steps:
     - uses: actions/checkout@v4
     
@@ -64,6 +62,10 @@ jobs:
     #   with:
     #     name: nuitka-build
     #     path: build
+
+    # 获取短SHA
+    - name: Extract Short SHA
+      run: echo "SHORT_SHA=${GITHUB_SHA:0:7}" >> $GITHUB_ENV
 
     # 使用环境变量
     - name: Create Source Archive
