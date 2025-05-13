@@ -32,7 +32,7 @@ jobs:
     - name: 更新依赖
       run: |
         pip install -r requirements.txt
-      working-directory: /
+      working-directory: assests
     
     - name: 调用 nuitka 构建 exe 文件
       run: |
