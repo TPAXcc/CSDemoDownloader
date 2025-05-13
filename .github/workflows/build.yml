@@ -37,6 +37,7 @@ jobs:
       run: |
         pip install -U nuitka
         nuitka --lto=yes CSDemoDownloader.py
+        
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
