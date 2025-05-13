@@ -3,7 +3,7 @@ on: [push, pull_request]
 
 jobs:
   build_exe:
-    runs-on: windows-latest
+    runs-on: windows-2025
     steps:
     - name: Setup Python
       uses: actions/setup-python@v5.6.0
@@ -29,12 +29,10 @@ jobs:
         # When 'true', use the freethreaded version of Python.
         #freethreaded: # optional
 
-    - name: 更新依赖
-      run: |
-        pip install -r requirements.txt
-      working-directory: /
+    - name: Install dependencies
+      run: pip install -r requirements.txt
     
-    - name: 调用 nuitka 构建 exe 文件
+    - name: build exe with nuitka
       run: |
         pip install -U nuitka
         nuitka CSDemoDownloader.py
