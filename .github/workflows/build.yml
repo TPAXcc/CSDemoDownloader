@@ -33,11 +33,11 @@ jobs:
     - name: Install Dependencies
       run: pip install -r requirements.txt
     
-    # - name: Build exe with Nuitka
-    #   run: |
-    #     pip install -U nuitka
-    #     mkdir -p build
-    #     nuitka --lto=yes --output-dir=build CSDemoDownloader.py
+    - name: Build exe with Nuitka
+      run: |
+        pip install -U nuitka
+        mkdir -p build
+        nuitka --lto=yes --output-dir=build CSDemoDownloader.py
         
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
@@ -57,11 +57,11 @@ jobs:
     - uses: actions/checkout@v4
     
     # 下载构建产物
-    # - name: Download Artifacts
-    #   uses: actions/download-artifact@v4
-    #   with:
-    #     name: nuitka-build
-    #     path: build
+    - name: Download Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: nuitka-build
+        path: build
 
     # 获取短SHA
     - name: Extract Short SHA
