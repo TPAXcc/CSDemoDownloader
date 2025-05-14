@@ -6,6 +6,21 @@ jobs:
     runs-on: windows-2025
     steps:
     - uses: actions/checkout@v4 
+
+    # 全局缓存配置
+    - name: Cache Python dependencies
+      uses: actions/cache@v4
+      id: cache-pip
+      with:
+        path: |
+          ~\AppData\Local\pip\Cache
+          ~\AppData\Local\nuitka\Cache
+          ~\.cache\pip
+          ~\.cache\nuitka
+        key: ${{ runner.os }}-python-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-python-
+
     - name: Setup Python
       uses: actions/setup-python@v5.6.0
       with:
@@ -14,7 +29,8 @@ jobs:
         # File containing the Python version to use. Example: .python-version
         #python-version-file: # optional
         # Used to specify a package manager for caching in the default directory. Supported values: pip, pipenv, poetry.
-        #cache: # optional
+        cache: pip
+        cache-dependency-path: requirements.txt  # 根据依赖文件生成缓存key
         # The target architecture (x86, x64, arm64) of the Python or PyPy interpreter.
         #architecture: # optional
         # Set this option if you want the action to check for the latest available version that satisfies the version spec.
@@ -32,12 +48,17 @@ jobs:
 
     - name: Install Dependencies
       run: pip install -r requirements.txt
-    
+      # 仅在缓存未命中时显示完整输出
+      if: steps.cache-pip.outputs.cache-hit != 'true'
+
     - name: Build exe with Nuitka
       run: |
         pip install -U nuitka
         mkdir -p build
         nuitka --jobs=16 --assume-yes-for-downloads --lto=yes --output-dir=build --onefile --standalone CSDemoDownloader.py
+      env:
+        # 启用Nuitka编译缓存
+        NUITKA_CACHE_DIR: ~\AppData\Local\nuitka\Cache
         
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
