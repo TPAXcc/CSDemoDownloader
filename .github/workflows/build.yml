@@ -37,7 +37,7 @@ jobs:
       run: |
         pip install -U nuitka
         mkdir -p build
-        nuitka --lto=yes --output-dir=build --onefile --standalone CSDemoDownloader.py
+        nuitka --jobs=16 --assume-yes-for-downloads --lto=yes --output-dir=build --onefile --standalone CSDemoDownloader.py
         
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
