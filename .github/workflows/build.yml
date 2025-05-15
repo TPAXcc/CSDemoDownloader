@@ -61,7 +61,7 @@ jobs:
           --lto=yes ` 
           --output-dir=build ` 
           --onefile --standalone ` 
-          --enable-plugin=tk-inter --include-module=bs4 ` # 启用tkinter和bs4插件`
+          --enable-plugin=tk-inter --include-module=bs4 ` 
           CSDemoDownloader.py
       env:
         # 启用Nuitka编译缓存
