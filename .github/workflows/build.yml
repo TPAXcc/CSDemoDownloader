@@ -56,11 +56,11 @@ jobs:
         pip install -U nuitka
         mkdir -p build
         nuitka `
-          --jobs=4 ` # 4线程编译
-          --assume-yes-for-downloads ` # 自动下载缺失的依赖
-          --lto=yes ` # 启用LTO
-          --output-dir=build ` # 输出目录
-          --onefile --standalone ` # 单文件独立可执行文件
+          --jobs=4 ` 
+          --assume-yes-for-downloads ` 
+          --lto=yes ` 
+          --output-dir=build ` 
+          --onefile --standalone ` 
           --enable-plugin=tk-inter --include-module=bs4 ` # 启用tkinter和bs4插件`
           CSDemoDownloader.py
       env:
