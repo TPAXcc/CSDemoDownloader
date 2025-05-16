@@ -14,9 +14,9 @@ import aiofiles
 import aiofiles
 import bz2
 import re
+from datetime import datetime, timezone
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-
 
 
 
@@ -50,6 +50,55 @@ def select(_title="请选择文件", select_type="file", _multiple=False):
     elif _multiple == True:
         return list(paths)  # 返回路径列表
     
+def update_file_mtime(file_list=[], demo_data=[]):
+    processed_count = 0  # 初始化计数器
+    # 构建文件名到时间的映射（去除.bz2后缀）
+    time_map = {}
+    
+    print("Debug - demo_data entries:")
+    for i, entry in enumerate(demo_data):
+        print(f"Entry {i}: {entry.get('demo_name', '')} | available: {entry.get('demo_availability', False)}")
+    
+    for entry in demo_data:
+        if not entry.get('demo_availability ', False):
+            continue
+        demo_name = entry['demo_name']
+        # 移除可能的.bz2后缀并规范化文件名
+        clean_name = demo_name.replace('.bz2', '')  
+        time_str = entry['time'].replace(' GMT', '')  # 去除GMT时区标识
+        time_map[clean_name] = time_str
+
+    print("\nDebug - time_map keys:")
+    print(list(time_map.keys())[:10])  # 打印前10个键避免刷屏
+
+    # 遍历文件列表并修改时间
+    for file_path in file_list:
+        try:
+            # 提取文件名并与字典键匹配
+            filename = os.path.basename(file_path)
+            if filename not in time_map:
+                print(f"找不到文件 {filename} 对应的时间记录")
+                continue
+            
+            # 解析时间字符串为datetime对象（视为UTC时间）
+            time_str = time_map[filename]
+            dt = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+            dt_utc = dt.replace(tzinfo=timezone.utc)  # 标记为UTC时间
+            timestamp = dt_utc.timestamp()  # 转换为时间戳
+            
+            # 修改文件访问和修改时间
+            os.utime(file_path, (timestamp, timestamp))
+            print(f"成功更新文件 {filename} 的时间为 {time_str}")
+            processed_count += 1  # 成功处理后增加计数
+            
+        except FileNotFoundError:
+            print(f"文件 {file_path} 不存在")
+        except Exception as e:
+            print(f"处理文件 {file_path} 时发生错误: {e}")
+    
+    return processed_count  # 返回处理成功的文件数量
+            
+            
 class AsyncCSGOParser:
     def __init__(self, html_files: List[str]):
         self.html_files = html_files
@@ -105,7 +154,7 @@ class AsyncCSGOParser:
                 "ranked": ranked,
                 "waitTime": wait_time,
                 "matchDuration": match_duration,
-                "demo_availability ": demo_availability ,
+                "demo_availability": demo_availability ,
                 "demo_url": demo_url,
                 "demo_name": demo_name
             }
@@ -126,11 +175,25 @@ class AsyncCSGOParser:
         
         return results
 
+    def _deduplicate(self, results: List[Dict]) -> List[Dict]:
+        """去重所有字段完全相同的条目"""
+        seen = set()
+        deduped = []
+        for item in results:
+            # 将字典按key排序后序列化为字符串作为唯一标识
+            identifier = json.dumps(item, sort_keys=True)
+            if identifier not in seen:
+                seen.add(identifier)
+                deduped.append(item)
+        return deduped
+
     async def run(self) -> List[Dict]:
-        """异步处理所有文件并返回合并结果"""
+        """异步处理所有文件并返回合并去重后的结果"""
         tasks = [self._process_file(file) for file in self.html_files]
         results = await asyncio.gather(*tasks)
-        return [item for sublist in results for item in sublist]
+        merged_results = [item for sublist in results for item in sublist]
+        return self._deduplicate(merged_results)
+    
 class AsyncDownloader:
     def __init__(
         self,
@@ -387,7 +450,7 @@ class AsyncBZ2Decompressor:
         return all(results)
 
 def main():
-   #解析链接
+    # 选择文件
     print("请选择 CS2 比赛记录文件")
     selected_files = select("请选择 CS2 比赛记录文件", "file", True)
     if not selected_files:
@@ -397,13 +460,14 @@ def main():
     for file in selected_files:
         print("- ", file)
     
+    # 解析文件
     print("开始解析 html 文件...")   
     demo = AsyncCSGOParser(
         html_files=selected_files
     )
     demo_data = asyncio.run(demo.run())
     print(f"已解析到 {len(demo_data)} 个 Demo：")
-    selected_fields = ['name', 'time', 'matchDuration', 'ranked', 'demo_availability ']
+    selected_fields = ['name', 'time', 'matchDuration', 'ranked', 'demo_availability']
     # header = " | ".join(selected_fields)
     header = "   模式/地图  |     时间     | 比赛时长 | (排名) | 可以下载 Demo "
     print(header + "\n" + "-" * len(header)*2)    
@@ -418,15 +482,14 @@ def main():
         print(" | ".join(row))
     
     
-    
-    # 处理demo链接
+    # 处理 demo
     print("请选择 Demo 下载文件夹") 
     traget_folder = select("请选择 Demo 下载文件夹", "folder")     
     print(f"已选择的 Demo 文件夹 {traget_folder} ")
     
     demo_links = []
     for match in demo_data:
-        if match.get('demo_availability') == True:
+        if match.get('demo_availability') is True:
             demo_links.append(match.get('demo_url'))
     print("开始下载 Demo 文件...")
     tmp_folder = traget_folder + "/tmp"
@@ -452,7 +515,9 @@ def main():
     for file in decompressor.files_name():
         print("- ", file)
     
-    
+    print("开始处理 Demo 文件时间...")
+    files_num = update_file_mtime(decompressor.files_name(), demo_data)
+    print(f"已处理 {files_num} 个  Demo 文件时间")
         
     os.remove(tmp_folder)  # 删除临时文件夹
     print(f"已删除 .bz2 缓存文件 {downloader.files_num()} 个")
