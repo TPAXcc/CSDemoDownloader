@@ -61,10 +61,6 @@ def update_file_mtime(file_list=[], demo_data=[], target_folder=script_dir):
     # 构建文件名到时间的映射（去除.bz2后缀）
     time_map = {}
     
-    print("Debug - demo_data entries:")
-    for i, entry in enumerate(demo_data):
-        print(f"Entry {i}: {entry.get('demo_name', '')} | available: {entry.get('demo_availability', False)}")
-    
     for entry in demo_data:
         if not entry.get('demo_availability', False):
             continue
@@ -73,9 +69,6 @@ def update_file_mtime(file_list=[], demo_data=[], target_folder=script_dir):
         clean_name = demo_name.replace('.bz2', '')  
         time_str = entry['time'].replace(' GMT', '')  # 去除GMT时区标识
         time_map[clean_name] = time_str
-    
-    print("\nDebug - time_map keys:")
-    print(list(time_map.keys())[:10])  # 打印前10个键避免刷屏
 
     # 遍历文件列表并修改时间
     for file in file_list:
