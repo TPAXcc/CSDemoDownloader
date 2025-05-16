@@ -2,6 +2,7 @@ beautifulsoup4
 urllib3
 aiohttp
 aiofiles
+aioconsole
 tqdm
 pathlib
 typing

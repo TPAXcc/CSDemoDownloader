@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog
 import ctypes
+import aioconsole
 from bs4 import BeautifulSoup
 import os
 from urllib.parse import urlparse
