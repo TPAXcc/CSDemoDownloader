@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import List, Tuple, Dict
 import aiofiles
 import aiofiles
-import bz2
+import indexed_bzip2 as ibzip2
 import re
 from datetime import datetime, timezone
 import json
@@ -382,7 +382,7 @@ class AsyncBZ2Decompressor:
         bz2_files_list: List[str],
         extract_dir: str,
         max_workers: int = 4,
-        chunk_size: int = 1024*1024  # 1MB
+        chunk_size: int = 4*1024*1024  # 4MB
     ):
         self.bz2_files_list = bz2_files_list
         self.extract_dir = Path(extract_dir)
@@ -393,7 +393,7 @@ class AsyncBZ2Decompressor:
         self.extract_dir.mkdir(parents=True, exist_ok=True)
 
     async def _stream_extract(self, src_path: Path):
-        """流式解压单个BZ2文件"""
+        """流式解压单个BZ2文件（使用indexed_bzip2）"""
         if self._lock is None:
             self._lock = asyncio.Lock()
         
@@ -402,7 +402,10 @@ class AsyncBZ2Decompressor:
         
         try:
             with (
-                bz2.BZ2File(src_path, 'rb') as f_in,
+                ibzip2.open(
+                    src_path, 'rb',
+                    parallelization=self.max_workers  # 设置并行线程数
+                ) as f_in,
                 open(dest_path, 'wb') as f_out,
                 tqdm_asyncio(
                     total=total_size,
@@ -417,7 +420,7 @@ class AsyncBZ2Decompressor:
                 while chunk := f_in.read(self.chunk_size):
                     f_out.write(chunk)
                     pbar.update(len(chunk))
-                    await asyncio.sleep(0)  # 让出事件循环控制权
+                    await asyncio.sleep(0)  # 保持事件循环控制权
 
             async with self._lock:
                 self._extracted_files.append(str(dest_path))
@@ -426,7 +429,6 @@ class AsyncBZ2Decompressor:
         except Exception as e:
             print(f"解压失败 {src_path.name}: {str(e)}")
             return False
-
     def files_num(self) -> int:
         """已解压文件数量"""
         return len(self._extracted_files)
