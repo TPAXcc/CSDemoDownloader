@@ -32,11 +32,7 @@ jobs:
     - name: Install Dependencies
       run: pip install -r requirements.txt
       # 仅在缓存未命中时显示完整输出
-      if: steps.cache-pip.outputs.cache-hit != 'true'
-
-    - name: Check bs4 installation
-      run: |
-        python -c "import bs4; print(bs4.__file__)"
+      # if: steps.cache-pip.outputs.cache-hit != 'true'
 
     - name: Build exe with Nuitka
       run: |
