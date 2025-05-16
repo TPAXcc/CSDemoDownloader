@@ -79,9 +79,8 @@ def update_file_mtime(file_list=[], demo_data=[], target_folder=script_dir):
     # 遍历文件列表并修改时间
     for file in file_list:
         try:
-            file_path=target_folder+file
             # 提取文件名并与字典键匹配
-            filename = os.path.basename(file_path)
+            filename = os.path.basename(file)
             print(f"正在处理文件 {filename}")
             print()
             if filename not in time_map:
@@ -95,14 +94,14 @@ def update_file_mtime(file_list=[], demo_data=[], target_folder=script_dir):
             timestamp = dt_utc.timestamp()  # 转换为时间戳
             
             # 修改文件访问和修改时间
-            os.utime(file_path, (timestamp, timestamp))
+            os.utime(file, (timestamp, timestamp))
             print(f"成功更新文件 {filename} 的时间为 {time_str}")
             processed_count += 1  # 成功处理后增加计数
             
         except FileNotFoundError:
-            print(f"文件 {file_path} 不存在")
+            print(f"文件 {file} 不存在")
         except Exception as e:
-            print(f"处理文件 {file_path} 时发生错误: {e}")
+            print(f"处理文件 {file} 时发生错误: {e}")
     
     return processed_count  # 返回处理成功的文件数量
                    
