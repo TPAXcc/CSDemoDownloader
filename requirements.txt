@@ -6,3 +6,4 @@ aioconsole
 tqdm
 pathlib
 typing
+shutil

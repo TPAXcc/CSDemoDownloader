@@ -20,6 +20,7 @@ import json
 from  concurrent.futures import ThreadPoolExecutor
 import threading
 from tqdm import tqdm
+import shutil
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -521,7 +522,7 @@ def main():
     files_num = update_file_mtime(decompressor.files_name(), demo_data)
     print(f"已处理 {files_num} 个  Demo 文件时间")
         
-    os.remove(tmp_folder)  # 删除临时文件夹
+    shutil.rmtree(tmp_folder)  # 删除临时文件夹
     print(f"已删除 .bz2 缓存文件 {downloader.files_num()} 个")
 
 if __name__ == "__main__":
