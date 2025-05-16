@@ -549,7 +549,7 @@ c. 官匹其它类型
         "bc": ["官匹竞技", "官匹其它类型"],
         "abc": ["官匹优先", "官匹竞技", "官匹其它类型"]
     }
-    print("已选择 "+"".join(dict_match_group.get(match_group_select, [])))
+    print("\n已选择 "+"".join(dict_match_group.get(match_group_select, [])))
     dict_match_group_grade = {
         "a": "-官匹优先下载教程\n 3a.点击浏览器URL框，在后面添加 gcpd/730/?tab=matchhistorypremier\n 4a.右键页面，选择保存/另存为",
         "b": "-官匹竞技下载教程\n 3b.点击浏览器URL框，在后面添加 gcpd/730/?tab=matchhistorycompetitivepermap\n 4a.右键页面，选择保存/另存为",
@@ -574,9 +574,6 @@ c. 官匹其它类型
     for choice in match_group_select:
         actions[choice]()
     print("5.选择所有保存的 CS2 比赛记录 (html 文件)")
-    input("按回车键继续...")
+    input("\n按回车键继续...")
     main()
     exit(1)
-    
-    
-    
