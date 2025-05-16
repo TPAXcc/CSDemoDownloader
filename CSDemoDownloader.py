@@ -13,11 +13,12 @@ from pathlib import Path
 from typing import List, Tuple, Dict
 import aiofiles
 import aiofiles
-import indexed_bzip2 as ibzip2
+import bz2
 import re
 from datetime import datetime, timezone
 import json
 import concurrent.futures
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -52,7 +53,7 @@ def select(_title="请选择文件", select_type="file", _multiple=False):
     elif _multiple == True:
         return list(paths)  # 返回路径列表
     
-def update_file_mtime(file_list=[], demo_data=[]):
+def update_file_mtime(file_list=[], demo_data=[], target_folder=script_dir):
     processed_count = 0  # 初始化计数器
     # 构建文件名到时间的映射（去除.bz2后缀）
     time_map = {}
@@ -62,26 +63,25 @@ def update_file_mtime(file_list=[], demo_data=[]):
         print(f"Entry {i}: {entry.get('demo_name', '')} | available: {entry.get('demo_availability', False)}")
     
     for entry in demo_data:
-        if not entry.get('demo_availability ', False):
+        if not entry.get('demo_availability', False):
             continue
         demo_name = entry['demo_name']
         # 移除可能的.bz2后缀并规范化文件名
         clean_name = demo_name.replace('.bz2', '')  
         time_str = entry['time'].replace(' GMT', '')  # 去除GMT时区标识
         time_map[clean_name] = time_str
-
-    print("Debug - demo_data entries2:")
-    for i, entry in enumerate(demo_data):
-        print(f"Entry {i}: {entry.get('demo_name', '')} | available: {entry.get('demo_availability', False)}")
     
     print("\nDebug - time_map keys:")
     print(list(time_map.keys())[:10])  # 打印前10个键避免刷屏
 
     # 遍历文件列表并修改时间
-    for file_path in file_list:
+    for file in file_list:
         try:
+            file_path=target_folder+file
             # 提取文件名并与字典键匹配
             filename = os.path.basename(file_path)
+            print(f"正在处理文件 {filename}")
+            print()
             if filename not in time_map:
                 print(f"找不到文件 {filename} 对应的时间记录")
                 continue
@@ -394,7 +394,7 @@ class AsyncBZ2Decompressor:
         self.extract_dir.mkdir(parents=True, exist_ok=True)
 
     async def _stream_extract(self, src_path: Path):
-        """流式解压单个BZ2文件（使用indexed_bzip2）"""
+        """流式解压单个BZ2文件"""
         if self._lock is None:
             self._lock = asyncio.Lock()
         
@@ -403,10 +403,8 @@ class AsyncBZ2Decompressor:
         
         try:
             with (
-                ibzip2.open(
-                    src_path, 'rb',
-                    parallelization=self.max_workers  # 设置并行线程数
-                ) as f_in,
+                bz2.BZ2File(src_path, 'rb') as f_in,
+                open(dest_path, 'wb') as f_out,
                 open(dest_path, 'wb') as f_out,
                 tqdm_asyncio(
                     total=total_size,
