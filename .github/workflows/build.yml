@@ -39,9 +39,9 @@ jobs:
         pip install -U nuitka
         mkdir -p build
         nuitka --jobs=4 --assume-yes-for-downloads --lto=yes --output-dir=build --onefile --standalone --enable-plugin=tk-inter --include-module=bs4 CSDemoDownloader.py
-      env:
-        # 启用Nuitka编译缓存
-        NUITKA_CACHE_DIR: ~\AppData\Local\nuitka\Cache
+      # env:
+      #   # 启用Nuitka编译缓存
+      #   NUITKA_CACHE_DIR: ~\AppData\Local\nuitka\Cache
         
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
