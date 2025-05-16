@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog
 import ctypes
+import aioconsole
 from bs4 import BeautifulSoup
 import os
 from urllib.parse import urlparse
@@ -9,13 +10,19 @@ import aiohttp
 from tqdm.asyncio import tqdm_asyncio
 import math
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 import aiofiles
 import aiofiles
 import bz2
+import re
+from datetime import datetime, timezone
+import json
+from  concurrent.futures import ThreadPoolExecutor
+import threading
+from tqdm import tqdm
+import shutil
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-
 
 
 
@@ -49,31 +56,151 @@ def select(_title="请选择文件", select_type="file", _multiple=False):
     elif _multiple == True:
         return list(paths)  # 返回路径列表
     
-def extract_demo_links(html_file):
-    """
-    从HTML文件中提取符合特定结构的回放下载链接
-    参数:
-        html_file (str): HTML文件路径
-    返回:
-        list: 包含所有匹配的.dem.bz2链接的列表
-    """
-    with open(html_file, 'r', encoding='utf-8') as f:
-        soup = BeautifulSoup(f, 'html.parser')
-
-    links = []
-    # 匹配包含特定class组合的td标签
-    for td in soup.find_all('td', class_='csgo_scoreboard_cell_noborder'):
-        # 查找包含下载按钮的div标签
-        download_div = td.find('div', class_=lambda x: x and {
-                               'btnv6_blue_hoverfade', 'btn_medium', 'csgo_scoreboard_btn_gotv'}.issubset(x.split()))
-        if download_div:
-            # 获取父级a标签的href属性
-            a_tag = download_div.find_parent('a')
-            if a_tag and a_tag.has_attr('href'):
-                links.append(a_tag['href'])
+def update_file_mtime(file_list=[], demo_data=[], target_folder=script_dir):
+    processed_count = 0  # 初始化计数器
+    # 构建文件名到时间的映射（去除.bz2后缀）
+    time_map = {}
     
-    return links
+    print("Debug - demo_data entries:")
+    for i, entry in enumerate(demo_data):
+        print(f"Entry {i}: {entry.get('demo_name', '')} | available: {entry.get('demo_availability', False)}")
+    
+    for entry in demo_data:
+        if not entry.get('demo_availability', False):
+            continue
+        demo_name = entry['demo_name']
+        # 移除可能的.bz2后缀并规范化文件名
+        clean_name = demo_name.replace('.bz2', '')  
+        time_str = entry['time'].replace(' GMT', '')  # 去除GMT时区标识
+        time_map[clean_name] = time_str
+    
+    print("\nDebug - time_map keys:")
+    print(list(time_map.keys())[:10])  # 打印前10个键避免刷屏
 
+    # 遍历文件列表并修改时间
+    for file in file_list:
+        try:
+            # 提取文件名并与字典键匹配
+            filename = os.path.basename(file)
+            print(f"正在处理文件 {filename}")
+            print()
+            if filename not in time_map:
+                print(f"找不到文件 {filename} 对应的时间记录")
+                continue
+            
+            # 解析时间字符串为datetime对象（视为UTC时间）
+            time_str = time_map[filename]
+            dt = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+            dt_utc = dt.replace(tzinfo=timezone.utc)  # 标记为UTC时间
+            timestamp = dt_utc.timestamp()  # 转换为时间戳
+            
+            # 修改文件访问和修改时间
+            os.utime(file, (timestamp, timestamp))
+            print(f"成功更新文件 {filename} 的时间为 {time_str}")
+            processed_count += 1  # 成功处理后增加计数
+            
+        except FileNotFoundError:
+            print(f"文件 {file} 不存在")
+        except Exception as e:
+            print(f"处理文件 {file} 时发生错误: {e}")
+    
+    return processed_count  # 返回处理成功的文件数量
+                   
+class AsyncCSGOParser:
+    def __init__(self, html_files: List[str]):
+        self.html_files = html_files
+
+    async def _parse_tbody(self, tbody) -> Dict[str, str]:
+        """解析单个tbody元素"""
+        trs = tbody.find_all('tr')
+        if len(trs) < 2:  # 至少需要name和time两个字段
+            return None
+
+        try:
+            # 提取基础字段
+            name = trs[0].td.get_text(strip=True)
+            time = trs[1].td.get_text(strip=True)
+
+            # 初始化可选字段
+            ranked = ""
+            wait_time = ""
+            match_duration = ""
+
+            # 使用正则表达式提取字段
+            patterns = {
+                'ranked': r'Ranked:\s*(.*)',
+                'waitTime': r'Wait Time:\s*(.*)',
+                'matchDuration': r'Match Duration:\s*(.*)'
+            }
+
+            # 遍历剩余的行
+            for tr in trs[2:]:
+                text = tr.td.get_text(strip=True)
+                for field, pattern in patterns.items():
+                    match = re.match(pattern, text)
+                    if match:
+                        value = match.group(1).strip()
+                        if field == 'ranked':
+                            ranked = value
+                        elif field == 'waitTime':
+                            wait_time = value
+                        elif field == 'matchDuration':
+                            match_duration = value
+                        break  # 匹配到后跳出当前循环
+
+            # 提取演示文件信息
+            demo_a = tbody.find("a", href=True)
+            demo_url = demo_a["href"] if demo_a else ""
+            demo_name = demo_url.split("/")[-1] if demo_url else ""
+            
+            demo_availability  = True if demo_url else False
+
+            return {
+                "name": name,
+                "time": time,
+                "ranked": ranked,
+                "waitTime": wait_time,
+                "matchDuration": match_duration,
+                "demo_availability": demo_availability ,
+                "demo_url": demo_url,
+                "demo_name": demo_name
+            }
+        except (AttributeError, IndexError, KeyError):
+            return None
+
+    async def _process_file(self, file_path: str) -> List[Dict]:
+        """处理单个HTML文件"""
+        async with aiofiles.open(file_path, "r", encoding="utf-8") as f:
+            content = await f.read()
+        
+        soup = BeautifulSoup(content, "html.parser")
+        results = []
+        
+        for tbody in soup.find_all("tbody"):
+            if parsed := await self._parse_tbody(tbody):
+                results.append(parsed)
+        
+        return results
+
+    def _deduplicate(self, results: List[Dict]) -> List[Dict]:
+        """去重所有字段完全相同的条目"""
+        seen = set()
+        deduped = []
+        for item in results:
+            # 将字典按key排序后序列化为字符串作为唯一标识
+            identifier = json.dumps(item, sort_keys=True)
+            if identifier not in seen:
+                seen.add(identifier)
+                deduped.append(item)
+        return deduped
+
+    async def run(self) -> List[Dict]:
+        """异步处理所有文件并返回合并去重后的结果"""
+        tasks = [self._process_file(file) for file in self.html_files]
+        results = await asyncio.gather(*tasks)
+        merged_results = [item for sublist in results for item in sublist]
+        return self._deduplicate(merged_results)
+    
 class AsyncDownloader:
     def __init__(
         self,
@@ -257,22 +384,19 @@ class AsyncBZ2Decompressor:
         self,
         bz2_files_list: List[str],
         extract_dir: str,
-        max_workers: int = 4,
-        chunk_size: int = 1024*1024  # 1MB
+        max_workers: int = os.cpu_count() * 2,
+        chunk_size: int = 4*1024*1024  # 4MB
     ):
-        self.bz2_files_list = bz2_files_list
+        self.bz2_files_list = [Path(f) for f in bz2_files_list]
         self.extract_dir = Path(extract_dir)
         self.max_workers = max_workers
         self.chunk_size = chunk_size
         self._extracted_files = []
-        self._lock = None
+        self._lock = threading.Lock()
         self.extract_dir.mkdir(parents=True, exist_ok=True)
 
-    async def _stream_extract(self, src_path: Path):
-        """流式解压单个BZ2文件"""
-        if self._lock is None:
-            self._lock = asyncio.Lock()
-        
+    def _stream_extract(self, src_path: Path) -> bool:
+        """同步解压单个BZ2文件"""
         dest_path = self.extract_dir / src_path.stem
         total_size = src_path.stat().st_size
         
@@ -280,22 +404,24 @@ class AsyncBZ2Decompressor:
             with (
                 bz2.BZ2File(src_path, 'rb') as f_in,
                 open(dest_path, 'wb') as f_out,
-                tqdm_asyncio(
-                    total=total_size,
+                tqdm(total=total_size, 
                     desc=f"解压 {src_path.name}",
                     unit='B',
                     unit_scale=True,
                     unit_divisor=1024,
                     ascii=True,
-                    dynamic_ncols=True
+                    dynamic_ncols=True,
+                    position=1  # 子进度条位置
                 ) as pbar
             ):
-                while chunk := f_in.read(self.chunk_size):
+                while True:
+                    chunk = f_in.read(self.chunk_size)
+                    if not chunk:
+                        break
                     f_out.write(chunk)
                     pbar.update(len(chunk))
-                    await asyncio.sleep(0)  # 让出事件循环控制权
 
-            async with self._lock:
+            with self._lock:
                 self._extracted_files.append(str(dest_path))
                 
             return True
@@ -311,55 +437,63 @@ class AsyncBZ2Decompressor:
         """已解压文件路径列表"""
         return self._extracted_files
     
-    async def run(self):
-        """异步入口函数"""
-        sem = asyncio.Semaphore(self.max_workers)
-        
-        async def worker(src_path):
-            async with sem:
-                return await self._stream_extract(src_path)
+    async def run(self):  
+        """异步入口：将同步任务提交到线程池"""
+        loop = asyncio.get_running_loop()
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = [
+                loop.run_in_executor(executor, self._stream_extract, src_path)
+                for src_path in self.bz2_files_list
+            ]
 
-        tasks = [worker(Path(f)) for f in self.bz2_files_list]
-        results = await tqdm_asyncio.gather(
-            *tasks,
-            desc="总进度",
-            unit="文件",
-            position=0
-        )
-        
-        return all(results)
-
+            with tqdm(total=len(futures), desc="总进度", unit="文件", position=0) as main_pbar:
+                for future in asyncio.as_completed(futures):
+                    await future  # 异步等待任务完成
+                    main_pbar.update(1)
+                    
+        return all(future.result() for future in futures)
 def main():
-   #解析链接
+    # 选择文件
     print("请选择 CS2 比赛记录文件")
     selected_files = select("请选择 CS2 比赛记录文件", "file", True)
     if not selected_files:
         print("未选择CS2 比赛记录文件，程序退出。")
         
-    print(f"已选则 {len(selected_files)} 个 CS2 比赛记录文件：")
+    print(f"已选择 {len(selected_files)} 个 CS2 比赛记录文件：")
     for file in selected_files:
         print("- ", file)
     
+    # 解析文件
     print("开始解析 html 文件...")   
-    if selected_files:
-        demo_links = extract_demo_links(selected_files[0])  # 处理第一个文件
-        # 或者处理所有文件
-        demo_links = []
-        file_num =0
-        for file in selected_files:
-            file_num += 1
-            demo_links.extend(extract_demo_links(file))
-    print(f"已解析到 {len(demo_links)} 个 Demo 链接 ：")
-    for link in demo_links:
-        print("- ", link)
+    demo = AsyncCSGOParser(
+        html_files=selected_files
+    )
+    demo_data = asyncio.run(demo.run())
+    print(f"已解析到 {len(demo_data)} 个 Demo：")
+    selected_fields = ['name', 'time', 'matchDuration', 'ranked', 'demo_availability']
+    # header = " | ".join(selected_fields)
+    header = "   模式/地图  |     时间     | 比赛时长 | (排名) | 可以下载 Demo "
+    print(header + "\n" + "-" * len(header)*2)    
+    for match in demo_data:
+        row = []
+        for field in selected_fields:
+            value = match.get(field, 'N/A')  # 若字段缺失，默认返回'N/A'
+            # 可选：对特定字段自定义格式（如时长添加单位）
+            # if field == 'matchDuration':
+            #     value = f"时长: {value}"
+            row.append(str(value))
+        print(" | ".join(row))
     
     
-    
-    # 处理demo链接
+    # 处理 demo
     print("请选择 Demo 下载文件夹") 
     traget_folder = select("请选择 Demo 下载文件夹", "folder")     
     print(f"已选择的 Demo 文件夹 {traget_folder} ")
     
+    demo_links = []
+    for match in demo_data:
+        if match.get('demo_availability') is True:
+            demo_links.append(match.get('demo_url'))
     print("开始下载 Demo 文件...")
     tmp_folder = traget_folder + "/tmp"
     downloader = AsyncDownloader(
@@ -383,8 +517,12 @@ def main():
     print(f"已解压 {len(decompressor.files_name())} 个 Demo 文件至 {traget_folder} 文件夹：")
     for file in decompressor.files_name():
         print("- ", file)
+    
+    print("开始处理 Demo 文件时间...")
+    files_num = update_file_mtime(decompressor.files_name(), demo_data)
+    print(f"已处理 {files_num} 个  Demo 文件时间")
         
-    os.remove(tmp_folder)  # 删除临时文件夹
+    shutil.rmtree(tmp_folder)  # 删除临时文件夹
     print(f"已删除 .bz2 缓存文件 {downloader.files_num()} 个")
 
 if __name__ == "__main__":
