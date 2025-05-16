@@ -17,7 +17,9 @@ import bz2
 import re
 from datetime import datetime, timezone
 import json
-import concurrent.futures
+from  concurrent.futures import ThreadPoolExecutor
+import threading
+from tqdm import tqdm
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -382,22 +384,19 @@ class AsyncBZ2Decompressor:
         self,
         bz2_files_list: List[str],
         extract_dir: str,
-        max_workers: int = 4,
+        max_workers: int = os.cpu_count() * 2,
         chunk_size: int = 4*1024*1024  # 4MB
     ):
-        self.bz2_files_list = bz2_files_list
+        self.bz2_files_list = [Path(f) for f in bz2_files_list]
         self.extract_dir = Path(extract_dir)
         self.max_workers = max_workers
         self.chunk_size = chunk_size
         self._extracted_files = []
-        self._lock = None
+        self._lock = threading.Lock()
         self.extract_dir.mkdir(parents=True, exist_ok=True)
 
-    async def _stream_extract(self, src_path: Path):
-        """流式解压单个BZ2文件"""
-        if self._lock is None:
-            self._lock = asyncio.Lock()
-        
+    def _stream_extract(self, src_path: Path) -> bool:
+        """同步解压单个BZ2文件"""
         dest_path = self.extract_dir / src_path.stem
         total_size = src_path.stat().st_size
         
@@ -405,29 +404,31 @@ class AsyncBZ2Decompressor:
             with (
                 bz2.BZ2File(src_path, 'rb') as f_in,
                 open(dest_path, 'wb') as f_out,
-                open(dest_path, 'wb') as f_out,
-                tqdm_asyncio(
-                    total=total_size,
+                tqdm(total=total_size, 
                     desc=f"解压 {src_path.name}",
                     unit='B',
                     unit_scale=True,
                     unit_divisor=1024,
                     ascii=True,
-                    dynamic_ncols=True
+                    dynamic_ncols=True,
+                    position=1  # 子进度条位置
                 ) as pbar
             ):
-                while chunk := f_in.read(self.chunk_size):
+                while True:
+                    chunk = f_in.read(self.chunk_size)
+                    if not chunk:
+                        break
                     f_out.write(chunk)
                     pbar.update(len(chunk))
-                    await asyncio.sleep(0)  # 保持事件循环控制权
 
-            async with self._lock:
+            with self._lock:
                 self._extracted_files.append(str(dest_path))
                 
             return True
         except Exception as e:
             print(f"解压失败 {src_path.name}: {str(e)}")
             return False
+
     def files_num(self) -> int:
         """已解压文件数量"""
         return len(self._extracted_files)
@@ -436,24 +437,21 @@ class AsyncBZ2Decompressor:
         """已解压文件路径列表"""
         return self._extracted_files
     
-    async def run(self):
-        """异步入口函数"""
-        sem = asyncio.Semaphore(self.max_workers)
-        
-        async def worker(src_path):
-            async with sem:
-                return await self._stream_extract(src_path)
+    async def run(self):  
+        """异步入口：将同步任务提交到线程池"""
+        loop = asyncio.get_running_loop()
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = [
+                loop.run_in_executor(executor, self._stream_extract, src_path)
+                for src_path in self.bz2_files_list
+            ]
 
-        tasks = [worker(Path(f)) for f in self.bz2_files_list]
-        results = await tqdm_asyncio.gather(
-            *tasks,
-            desc="总进度",
-            unit="文件",
-            position=0
-        )
-        
-        return all(results)
-
+            with tqdm(total=len(futures), desc="总进度", unit="文件", position=0) as main_pbar:
+                for future in asyncio.as_completed(futures):
+                    await future  # 异步等待任务完成
+                    main_pbar.update(1)
+                    
+        return all(future.result() for future in futures)
 def main():
     # 选择文件
     print("请选择 CS2 比赛记录文件")
