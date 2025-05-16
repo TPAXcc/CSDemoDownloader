@@ -15,7 +15,8 @@ import aiofiles
 import bz2
 import re
 from datetime import datetime, timezone
-
+import json
+import concurrent.futures
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -68,6 +69,10 @@ def update_file_mtime(file_list=[], demo_data=[]):
         time_str = entry['time'].replace(' GMT', '')  # 去除GMT时区标识
         time_map[clean_name] = time_str
 
+    print("Debug - demo_data entries2:")
+    for i, entry in enumerate(demo_data):
+        print(f"Entry {i}: {entry.get('demo_name', '')} | available: {entry.get('demo_availability', False)}")
+    
     print("\nDebug - time_map keys:")
     print(list(time_map.keys())[:10])  # 打印前10个键避免刷屏
 
@@ -97,8 +102,7 @@ def update_file_mtime(file_list=[], demo_data=[]):
             print(f"处理文件 {file_path} 时发生错误: {e}")
     
     return processed_count  # 返回处理成功的文件数量
-            
-            
+                   
 class AsyncCSGOParser:
     def __init__(self, html_files: List[str]):
         self.html_files = html_files
