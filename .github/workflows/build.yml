@@ -71,10 +71,9 @@ jobs:
     - name: Extract Short SHA
       run: echo "SHORT_SHA=${GITHUB_SHA:0:7}" >> $GITHUB_ENV
     
-    - name: Generate Release Notes
+    - name: Generate Release Note
       run: |
-        echo "- ${{ github.event.head_commit.message }}" > release_notes.md
-        echo " " > release_notes.md
+        echo -e "- ${{ github.event.head_commit.message \n}}" > release_notes.md
         echo "Commit: ${{ env.SHORT_SHA }}" >> release_notes.md
         echo "###### 由 GitHub Actions 自动生成" >> release_notes.md
 
