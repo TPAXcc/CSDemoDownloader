@@ -73,7 +73,7 @@ jobs:
     
     - name: Generate Release Note
       run: |
-        echo -e "- ${{ github.event.head_commit.message \n}}" >> release_notes.md
+        echo -e "- ${{ github.event.head_commit.message}}\n" >> release_notes.md
         echo "Commit: ${{ env.SHORT_SHA }}" >> release_notes.md
         echo "###### 由 GitHub Actions 自动生成" >> release_notes.md
 
