@@ -32,7 +32,7 @@ def select(_title="请选择文件", select_type="file", _multiple=False):
 
     root = tk.Tk()
     # root.iconbitmap(os.path.join(script_dir, 'assets', 'explorer_icon.ico'))
-    root.withdraw()  # 隐藏主窗口
+    # root.withdraw()  # 隐藏主窗口
     
     if select_type == "file":
         # 设置文件对话框参数
